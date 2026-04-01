@@ -1,346 +1,144 @@
+# ===============================
+# Fake Review Detection Dashboard
+# ===============================
 
-        "# ===============================\n",
-        "# Fake Review Detection Dashboard\n",
-        "# ===============================\n",
-        "\n",
-        "import streamlit as st\n",
-        "import pandas as pd\n",
-        "import numpy as np\n",
-        "import re\n",
-        "import string\n",
-        "\n",
-        "# NLP Libraries\n",
-        "from sklearn.feature_extraction.text import TfidfVectorizer\n",
-        "from sklearn.linear_model import LogisticRegression\n",
-        "from sklearn.model_selection import train_test_split\n",
-        "\n",
-        "from wordcloud import WordCloud\n",
-        "import matplotlib.pyplot as plt\n",
-        "\n",
-        "import plotly.express as px\n",
-        "\n",
-        "# ===============================\n",
-        "# PAGE CONFIG\n",
-        "# ===============================\n",
-        "st.set_page_config(page_title=\"Fake Review Detection Dashboard\", layout=\"wide\")\n",
-        "\n",
-        "st.title(\"🕵️ Fake Review Detection Dashboard\")\n",
-        "\n",
-        "# ===============================\n",
-        "# TEXT CLEANING FUNCTION\n",
-        "# ===============================\n",
-        "def clean_text(text):\n",
-        "    text = str(text).lower()\n",
-        "    text = re.sub(r\"http\\S+\", \"\", text)\n",
-        "    text = re.sub(r\"\\d+\", \"\", text)\n",
-        "    text = text.translate(str.maketrans(\"\", \"\", string.punctuation))\n",
-        "    return text\n",
-        "\n",
-        "# ===============================\n",
-        "# LOAD DATA\n",
-        "# ===============================\n",
-        "st.sidebar.header(\"Upload Dataset\")\n",
-        "\n",
-        "uploaded_file = st.sidebar.file_uploader(\"Upload CSV\", type=[\"csv\"])\n",
-        "\n",
-        "if uploaded_file:\n",
-        "    df = pd.read_csv(uploaded_file)\n",
-        "\n",
-        "    st.subheader(\"📊 Raw Data\")\n",
-        "    st.dataframe(df.head(), use_container_width=True)\n",
-        "\n",
-        "    # ===============================\n",
-        "    # DATA CLEANING\n",
-        "    # ===============================\n",
-        "    if \"review\" not in df.columns or \"label\" not in df.columns:\n",
-        "        st.error(\"Dataset must contain 'review' and 'label' columns\")\n",
-        "    else:\n",
-        "        df['clean_review'] = df['review'].apply(clean_text)\n",
-        "\n",
-        "        # ===============================\n",
-        "        # TRAIN MODEL\n",
-        "        # ===============================\n",
-        "        vectorizer = TfidfVectorizer(max_features=5000)\n",
-        "        X = vectorizer.fit_transform(df['clean_review'])\n",
-        "        y = df['label']\n",
-        "\n",
-        "        X_train, X_test, y_train, y_test = train_test_split(\n",
-        "            X, y, test_size=0.2, random_state=42\n",
-        "        )\n",
-        "\n",
-        "        model = LogisticRegression()\n",
-        "        model.fit(X_train, y_train)\n",
-        "\n",
-        "        accuracy = model.score(X_test, y_test)\n",
-        "\n",
-        "        st.success(f\"Model Accuracy: {accuracy:.2f}\")\n",
-        "\n",
-        "        # ===============================\n",
-        "        # SIDEBAR INPUT\n",
-        "        # ===============================\n",
-        "        st.sidebar.subheader(\"🔍 Test a Review\")\n",
-        "\n",
-        "        user_input = st.sidebar.text_area(\"Enter Review\")\n",
-        "\n",
-        "        if st.sidebar.button(\"Predict\"):\n",
-        "            cleaned = clean_text(user_input)\n",
-        "            vec = vectorizer.transform([cleaned])\n",
-        "            pred = model.predict(vec)[0]\n",
-        "\n",
-        "            if pred == 1:\n",
-        "                st.sidebar.error(\"🚨 Fake Review Detected\")\n",
-        "            else:\n",
-        "                st.sidebar.success(\"✅ Genuine Review\")\n",
-        "\n",
-        "        # ===============================\n",
-        "        # TABS\n",
-        "        # ===============================\n",
-        "        tab1, tab2, tab3, tab4 = st.tabs(\n",
-        "            [\"📊 Overview\", \"📈 Visualizations\", \"☁️ WordCloud\", \"🔎 Search\"]\n",
-        "        )\n",
-        "\n",
-        "        # ===============================\n",
-        "        # TAB 1 - OVERVIEW\n",
-        "        # ===============================\n",
-        "        with tab1:\n",
-        "            st.subheader(\"Dataset Overview\")\n",
-        "\n",
-        "            col1, col2 = st.columns(2)\n",
-        "\n",
-        "            with col1:\n",
-        "                st.metric(\"Total Reviews\", len(df))\n",
-        "\n",
-        "            with col2:\n",
-        "                fake_count = df['label'].sum()\n",
-        "                st.metric(\"Fake Reviews\", fake_count)\n",
-        "\n",
-        "        # ===============================\n",
-        "        # TAB 2 - VISUALIZATION\n",
-        "        # ===============================\n",
-        "        with tab2:\n",
-        "            st.subheader(\"Review Distribution\")\n",
-        "\n",
-        "            fig = px.pie(df, names='label', title=\"Fake vs Real Reviews\")\n",
-        "            st.plotly_chart(fig, use_container_width=True)\n",
-        "\n",
-        "            st.subheader(\"Review Length Analysis\")\n",
-        "            df['length'] = df['review'].apply(len)\n",
-        "\n",
-        "            fig2 = px.histogram(df, x=\"length\", nbins=50)\n",
-        "            st.plotly_chart(fig2, use_container_width=True)\n",
-        "\n",
-        "        # ===============================\n",
-        "        # TAB 3 - WORDCLOUD\n",
-        "        # ===============================\n",
-        "        with tab3:\n",
-        "            st.subheader(\"WordCloud of Reviews\")\n",
-        "\n",
-        "            text = \" \".join(df['clean_review'])\n",
-        "\n",
-        "            wc = WordCloud(width=800, height=400).generate(text)\n",
-        "\n",
-        "            fig, ax = plt.subplots()\n",
-        "            ax.imshow(wc)\n",
-        "            ax.axis(\"off\")\n",
-        "\n",
-        "            st.pyplot(fig)\n",
-        "\n",
-        "        # ===============================\n",
-        "        # TAB 4 - SEARCH\n",
-        "        # ===============================\n",
-        "        with tab4:\n",
-        "            st.subheader(\"Search Reviews\")\n",
-        "\n",
-        "            query = st.text_input(\"Enter keyword\")\n",
-        "\n",
-        "            if query:\n",
-        "                results = df[df['review'].str.contains(query, case=False, na=False)]\n",
-        "\n",
-        "                if not results.empty:\n",
-        "                    st.success(f\"Found {len(results)} reviews\")\n",
-        "                    st.dataframe(results.head(), use_container_width=True)\n",
-        "                else:\n",
-        "                    st.warning(\"No results found\")\n",
-        "\n",
-        "else:\n",
-        "    st.info(\"Please upload a dataset to start\")"
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "%%writefile app.py\n",
-        "# paste your full code here (the code I gave you earlier)\n",
-        "# ===============================\n",
-        "# Fake Review Detection Dashboard\n",
-        "# ===============================\n",
-        "\n",
-        "import streamlit as st\n",
-        "import pandas as pd\n",
-        "import numpy as np\n",
-        "import re\n",
-        "import string\n",
-        "\n",
-        "# NLP Libraries\n",
-        "from sklearn.feature_extraction.text import TfidfVectorizer\n",
-        "from sklearn.linear_model import LogisticRegression\n",
-        "from sklearn.model_selection import train_test_split\n",
-        "\n",
-        "from wordcloud import WordCloud\n",
-        "import matplotlib.pyplot as plt\n",
-        "\n",
-        "import plotly.express as px\n",
-        "\n",
-        "# ===============================\n",
-        "# PAGE CONFIG\n",
-        "# ===============================\n",
-        "st.set_page_config(page_title=\"Fake Review Detection Dashboard\", layout=\"wide\")\n",
-        "\n",
-        "st.title(\"🕵️ Fake Review Detection Dashboard\")\n",
-        "st.markdown(\"Detect fake product reviews using Machine Learning & NLP\")\n",
-        "\n",
-        "# ===============================\n",
-        "# TEXT CLEANING FUNCTION\n",
-        "# ===============================\n",
-        "def clean_text(text):\n",
-        "    text = str(text).lower()\n",
-        "    text = re.sub(r\"http\\S+\", \"\", text)\n",
-        "    text = re.sub(r\"\\d+\", \"\", text)\n",
-        "    text = text.translate(str.maketrans(\"\", \"\", string.punctuation))\n",
-        "    return text\n",
-        "\n",
-        "# ===============================\n",
-        "# SIDEBAR\n",
-        "# ===============================\n",
-        "st.sidebar.header(\"Upload Dataset\")\n",
-        "uploaded_file = st.sidebar.file_uploader(\"Upload CSV\", type=[\"csv\"])\n",
-        "\n",
-        "# ===============================\n",
-        "# MAIN APP\n",
-        "# ===============================\n",
-        "if uploaded_file:\n",
-        "    df = pd.read_csv(uploaded_file)\n",
-        "\n",
-        "    st.subheader(\"📊 Raw Data\")\n",
-        "    st.dataframe(df.head(), use_container_width=True)\n",
-        "\n",
-        "    if \"review\" not in df.columns or \"label\" not in df.columns:\n",
-        "        st.error(\"Dataset must contain 'review' and 'label' columns\")\n",
-        "\n",
-        "    else:\n",
-        "        # Clean text\n",
-        "        df['clean_review'] = df['review'].apply(clean_text)\n",
-        "\n",
-        "        # Train Model\n",
-        "        vectorizer = TfidfVectorizer(max_features=5000)\n",
-        "        X = vectorizer.fit_transform(df['clean_review'])\n",
-        "        y = df['label']\n",
-        "\n",
-        "        X_train, X_test, y_train, y_test = train_test_split(\n",
-        "            X, y, test_size=0.2, random_state=42\n",
-        "        )\n",
-        "\n",
-        "        model = LogisticRegression(max_iter=200)\n",
-        "        model.fit(X_train, y_train)\n",
-        "\n",
-        "        accuracy = model.score(X_test, y_test)\n",
-        "        st.success(f\"Model Accuracy: {accuracy:.2f}\")\n",
-        "\n",
-        "        # ===============================\n",
-        "        # USER INPUT\n",
-        "        # ===============================\n",
-        "        st.sidebar.subheader(\"🔍 Test a Review\")\n",
-        "        user_input = st.sidebar.text_area(\"Enter Review\")\n",
-        "\n",
-        "        if st.sidebar.button(\"Predict\"):\n",
-        "            if user_input.strip() != \"\":\n",
-        "                cleaned = clean_text(user_input)\n",
-        "                vec = vectorizer.transform([cleaned])\n",
-        "                pred = model.predict(vec)[0]\n",
-        "\n",
-        "                if pred == 1:\n",
-        "                    st.sidebar.error(\"🚨 Fake Review Detected\")\n",
-        "                else:\n",
-        "                    st.sidebar.success(\"✅ Genuine Review\")\n",
-        "            else:\n",
-        "                st.sidebar.warning(\"Please enter a review\")\n",
-        "\n",
-        "        # ===============================\n",
-        "        # TABS\n",
-        "        # ===============================\n",
-        "        tab1, tab2, tab3, tab4 = st.tabs(\n",
-        "            [\"📊 Overview\", \"📈 Visualizations\", \"☁️ WordCloud\", \"🔎 Search\"]\n",
-        "        )\n",
-        "\n",
-        "        # Overview\n",
-        "        with tab1:\n",
-        "            st.subheader(\"Dataset Overview\")\n",
-        "            col1, col2 = st.columns(2)\n",
-        "\n",
-        "            with col1:\n",
-        "                st.metric(\"Total Reviews\", len(df))\n",
-        "\n",
-        "            with col2:\n",
-        "                fake_count = df['label'].sum()\n",
-        "                st.metric(\"Fake Reviews\", fake_count)\n",
-        "\n",
-        "        # Visualizations\n",
-        "        with tab2:\n",
-        "            st.subheader(\"Review Distribution\")\n",
-        "            fig = px.pie(df, names='label', title=\"Fake vs Real Reviews\")\n",
-        "            st.plotly_chart(fig, use_container_width=True)\n",
-        "\n",
-        "            st.subheader(\"Review Length Analysis\")\n",
-        "            df['length'] = df['review'].apply(len)\n",
-        "            fig2 = px.histogram(df, x=\"length\", nbins=50)\n",
-        "            st.plotly_chart(fig2, use_container_width=True)\n",
-        "\n",
-        "        # WordCloud\n",
-        "        with tab3:\n",
-        "            st.subheader(\"WordCloud of Reviews\")\n",
-        "            text = \" \".join(df['clean_review'])\n",
-        "\n",
-        "            wc = WordCloud(width=800, height=400).generate(text)\n",
-        "\n",
-        "            fig, ax = plt.subplots()\n",
-        "            ax.imshow(wc)\n",
-        "            ax.axis(\"off\")\n",
-        "            st.pyplot(fig)\n",
-        "\n",
-        "        # Search\n",
-        "        with tab4:\n",
-        "            st.subheader(\"Search Reviews\")\n",
-        "            query = st.text_input(\"Enter keyword\")\n",
-        "\n",
-        "            if query:\n",
-        "                results = df[df['review'].str.contains(query, case=False, na=False)]\n",
-        "\n",
-        "                if not results.empty:\n",
-        "                    st.success(f\"Found {len(results)} reviews\")\n",
-        "                    st.dataframe(results.head(), use_container_width=True)\n",
-        "                else:\n",
-        "                    st.warning(\"No results found\")\n",
-        "\n",
-        "else:\n",
-        "    st.info(\"Please upload a dataset to start\")"
-      ],
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/"
-        },
-        "id": "kda1ZY1tVlDf",
-        "outputId": "1cd6bfff-efb2-42a9-af78-a1f1cee792bd"
-      },
-      "execution_count": 4,
-      "outputs": [
-        {
-          "output_type": "stream",
-          "name": "stdout",
-          "text": [
-            "Writing app.py\n"
-          ]
-        }
-      ]
-    }
-  ]
-}
+import streamlit as st
+import pandas as pd
+import numpy as np
+import re
+import string
+
+# NLP Libraries
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+
+import plotly.express as px
+
+# ===============================
+# PAGE CONFIG
+# ===============================
+st.set_page_config(page_title="Fake Review Detection Dashboard", layout="wide")
+
+st.title("🕵️ Fake Review Detection Dashboard")
+st.markdown("Detect fake product reviews using Machine Learning & NLP")
+
+# ===============================
+# TEXT CLEANING FUNCTION
+# ===============================
+def clean_text(text):
+    text = str(text).lower()
+    text = re.sub(r"http\S+", "", text)
+    text = re.sub(r"\d+", "", text)
+    text = text.translate(str.maketrans("", "", string.punctuation))
+    return text
+
+# ===============================
+# SIDEBAR
+# ===============================
+st.sidebar.header("Upload Dataset")
+uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
+
+# ===============================
+# MAIN APP
+# ===============================
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
+
+    st.subheader("📊 Raw Data")
+    st.dataframe(df.head(), use_container_width=True)
+
+    if "review" not in df.columns or "label" not in df.columns:
+        st.error("Dataset must contain 'review' and 'label' columns")
+
+    else:
+        # Clean text
+        df['clean_review'] = df['review'].apply(clean_text)
+
+        # Train Model
+        vectorizer = TfidfVectorizer(max_features=5000)
+        X = vectorizer.fit_transform(df['clean_review'])
+        y = df['label']
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+
+        model = LogisticRegression(max_iter=200)
+        model.fit(X_train, y_train)
+
+        accuracy = model.score(X_test, y_test)
+        st.success(f"Model Accuracy: {accuracy:.2f}")
+
+        # USER INPUT
+        st.sidebar.subheader("🔍 Test a Review")
+        user_input = st.sidebar.text_area("Enter Review")
+
+        if st.sidebar.button("Predict"):
+            if user_input.strip() != "":
+                cleaned = clean_text(user_input)
+                vec = vectorizer.transform([cleaned])
+                pred = model.predict(vec)[0]
+
+                if pred == 1:
+                    st.sidebar.error("🚨 Fake Review Detected")
+                else:
+                    st.sidebar.success("✅ Genuine Review")
+            else:
+                st.sidebar.warning("Please enter a review")
+
+        # TABS
+        tab1, tab2, tab3, tab4 = st.tabs(
+            ["📊 Overview", "📈 Visualizations", "☁️ WordCloud", "🔎 Search"]
+        )
+
+        with tab1:
+            st.subheader("Dataset Overview")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.metric("Total Reviews", len(df))
+
+            with col2:
+                fake_count = df['label'].sum()
+                st.metric("Fake Reviews", fake_count)
+
+        with tab2:
+            st.subheader("Review Distribution")
+            fig = px.pie(df, names='label', title="Fake vs Real Reviews")
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.subheader("Review Length Analysis")
+            df['length'] = df['review'].apply(len)
+            fig2 = px.histogram(df, x="length", nbins=50)
+            st.plotly_chart(fig2, use_container_width=True)
+
+        with tab3:
+            st.subheader("WordCloud of Reviews")
+            text = " ".join(df['clean_review'])
+
+            wc = WordCloud(width=800, height=400).generate(text)
+
+            fig, ax = plt.subplots()
+            ax.imshow(wc)
+            ax.axis("off")
+            st.pyplot(fig)
+
+        with tab4:
+            st.subheader("Search Reviews")
+            query = st.text_input("Enter keyword")
+
+            if query:
+                results = df[df['review'].str.contains(query, case=False, na=False)]
+
+                if not results.empty:
+                    st.success(f"Found {len(results)} reviews")
+                    st.dataframe(results.head(), use_container_width=True)
+                else:
+                    st.warning("No results found")
+
+else:
+    st.info("Please upload a dataset to start")
