@@ -34,7 +34,7 @@ def clean_text(text):
     return text
 
 # ===============================
-# IMPROVED SAMPLE DATA
+# SAMPLE DATA (BALANCED)
 # ===============================
 sample_data = {
     "review": [
@@ -96,7 +96,7 @@ if option == "Upload CSV":
 
             model.fit(X_train, y_train)
 
-            st.info("Model trained successfully")
+            st.success("Model trained successfully")
 
             # Prediction
             st.sidebar.subheader("🔍 Test a Review")
@@ -108,12 +108,11 @@ if option == "Upload CSV":
                     vec = vectorizer.transform([cleaned])
 
                     pred = model.predict(vec)[0]
-                    prob = model.predict_proba(vec)[0][1]
 
                     if pred == 1:
-                        st.sidebar.error(f"🚨 Fake Review ({prob*100:.1f}% confidence)")
+                        st.sidebar.error("🚨 Fake Review Detected")
                     else:
-                        st.sidebar.success(f"✅ Genuine Review ({(1-prob)*100:.1f}% confidence)")
+                        st.sidebar.success("✅ Genuine Review")
                 else:
                     st.sidebar.warning("Please enter a review")
 
@@ -173,11 +172,10 @@ else:
             vec = vectorizer.transform([cleaned])
 
             pred = model.predict(vec)[0]
-            prob = model.predict_proba(vec)[0][1]
 
             if pred == 1:
-                st.error(f"🚨 Fake Review ({prob*100:.1f}% confidence)")
+                st.error("🚨 Fake Review")
             else:
-                st.success(f"✅ Genuine Review ({(1-prob)*100:.1f}% confidence)")
+                st.success("✅ Genuine Review")
         else:
             st.warning("Please enter a review")
