@@ -4,11 +4,9 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import re
 import string
 
-# NLP Libraries
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -36,34 +34,40 @@ def clean_text(text):
     return text
 
 # ===============================
-# SAMPLE DATA (Fallback)
+# IMPROVED SAMPLE DATA
 # ===============================
 sample_data = {
     "review": [
-        "This product is amazing and works perfectly",
-        "Worst product ever waste of money",
+        # Genuine
+        "This product is really good and useful",
+        "I am very satisfied with this purchase",
+        "Excellent quality and fast delivery",
+        "Worth buying amazing product",
+        "Very good product highly recommend",
+        "Happy with the performance and quality",
+
+        # Fake
         "Fake product do not buy",
-        "Very good product satisfied",
-        "Totally useless and scam",
-        "Loved it great purchase",
-        "This is fake and terrible",
-        "Excellent product worth buying",
-        "Not original product fake seller",
-        "Bad quality waste of money"
+        "Worst product ever waste of money",
+        "Totally useless scam product",
+        "Not original fake seller",
+        "Very bad quality fake item",
+        "This is a scam do not trust"
     ],
-    "label": [0,1,1,0,1,0,1,0,1,1]
+    "label": [0,0,0,0,0,0,1,1,1,1,1,1]
 }
+
 sample_df = pd.DataFrame(sample_data)
 
 # ===============================
-# USER CHOICE
+# USER OPTION
 # ===============================
 option = st.sidebar.radio("Choose Option", ["Upload CSV", "Type Review Only"])
 
 # ===============================
-# MODEL VARIABLES
+# MODEL SETUP
 # ===============================
-vectorizer = TfidfVectorizer(max_features=5000)
+vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1,2))
 model = LogisticRegression(max_iter=200)
 
 # ===============================
@@ -91,11 +95,10 @@ if option == "Upload CSV":
             )
 
             model.fit(X_train, y_train)
-            accuracy = model.score(X_test, y_test)
 
-            st.success(f"Model Accuracy: {accuracy:.2f}")
+            st.info("Model trained successfully")
 
-            # USER INPUT
+            # Prediction
             st.sidebar.subheader("🔍 Test a Review")
             user_input = st.sidebar.text_area("Enter Review")
 
@@ -103,14 +106,18 @@ if option == "Upload CSV":
                 if user_input.strip() != "":
                     cleaned = clean_text(user_input)
                     vec = vectorizer.transform([cleaned])
+
                     pred = model.predict(vec)[0]
+                    prob = model.predict_proba(vec)[0][1]
 
                     if pred == 1:
-                        st.sidebar.error("🚨 Fake Review Detected")
+                        st.sidebar.error(f"🚨 Fake Review ({prob*100:.1f}% confidence)")
                     else:
-                        st.sidebar.success("✅ Genuine Review")
+                        st.sidebar.success(f"✅ Genuine Review ({(1-prob)*100:.1f}% confidence)")
+                else:
+                    st.sidebar.warning("Please enter a review")
 
-            # TABS (same as your original)
+            # TABS
             tab1, tab2, tab3, tab4 = st.tabs(
                 ["📊 Overview", "📈 Visualizations", "☁️ WordCloud", "🔎 Search"]
             )
@@ -146,15 +153,16 @@ if option == "Upload CSV":
         st.info("Please upload a dataset")
 
 # ===============================
-# OPTION 2: TYPE ONLY
+# OPTION 2: TYPE REVIEW ONLY
 # ===============================
 else:
     st.subheader("🔍 Try Fake Review Detection")
 
-    # Train on sample data
     sample_df['clean_review'] = sample_df['review'].apply(clean_text)
+
     X = vectorizer.fit_transform(sample_df['clean_review'])
     y = sample_df['label']
+
     model.fit(X, y)
 
     user_input = st.text_area("Enter your review")
@@ -163,11 +171,13 @@ else:
         if user_input.strip() != "":
             cleaned = clean_text(user_input)
             vec = vectorizer.transform([cleaned])
+
             pred = model.predict(vec)[0]
+            prob = model.predict_proba(vec)[0][1]
 
             if pred == 1:
-                st.error("🚨 Fake Review")
+                st.error(f"🚨 Fake Review ({prob*100:.1f}% confidence)")
             else:
-                st.success("✅ Genuine Review")
+                st.success(f"✅ Genuine Review ({(1-prob)*100:.1f}% confidence)")
         else:
             st.warning("Please enter a review")
